@@ -1,0 +1,64 @@
+######################################################
+%cd '/content/'                 #경로 설정
+os.mkdir('/content/dataset')    #폴더 생성
+
+!wget url #colab에 바로 다운로드하기   ####!wget https://md-datasets-cache-zipfiles-prod.s3.eu-west-1.amazonaws.com/tywbtsjrjv-1.zip
+!unzip -q '파일경로.확장자'            #압출해제
+
+
+######################################################
+# making folder, copying file
+%cd /gdrive/MyDrive                   # 복사할 파일 위치로 이동
+!mkdir -p /content/saved_model/
+!cp D_A_8.pth /content/saved_model/
+
+######################################################
+## colab에 pakage 설치 konlpy import 하기 
+!apt-get update
+!apt-get install g++ openjdk-8-jdk 
+!pip install konlpy JPype1-py3
+!bash <(curl -s https://raw.githubusercontent.com/konlpy/konlpy/master/scripts/mecab.sh)
+
+######################################################
+# PC -> colab으로  file upload
+from google.colab import files
+uploaded = files.upload()
+for fn in uploaded.keys():
+  print('User uploaded file "{name}" with length {length} bytes'.format(
+      name=fn, length=len(uploaded[fn])))
+
+######################################################
+# colab file -> pandas data 변환
+import pandas as pd
+data = pd.read_csv('./data.tsv', sep='\t')
+data = pd.read_csv('path + file_name.csv', sep='\t',  lineterminator='\n')
+data = pd.read_csv('path + file_name.csv',  lineterminator='\n')
+
+######################################################
+#colab -> PC로  file download
+from google.colab import files
+files.download('file_name.xxx)
+
+######################################################
+#google drive에서 file download
+from google.colab import drive
+drive.mount('/gdrive')
+!ls /gdrive/My\ Drive/Colab\ Notebooks/data
+accidents = pd.read_csv('path + file_name.xxx', delimiter='\t')
+
+######################################################
+#google drive로 file upload
+from google.colab import drive
+data.to_csv('path + file_name.xxx')
+
+######################################################
+# 연결끊김 방지
+function ClickConnect(){
+    console.log("코랩 연결 끊김 방지"); 
+    document.querySelector("colab-toolbar-button#connect").click() 
+}
+setInterval(ClickConnect, 60 * 1000)
+
+######################################################
+# colab에서 단일 file download
+!curl -L -O url       #-L auto redirection -O use same filename

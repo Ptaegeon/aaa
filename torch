@@ -1,0 +1,202 @@
+# model save and load
+#################################################
+torch.save(model, path)                             # 모델 전체
+torch.save(model.state_dict(), path)                # weight 만
+torch.save(model.state_dict(), 'weights_only.pth')  # 사용방법
+
+#model load
+#################################################
+model_new = torch.load(path.pth)                    # 모델 전체
+model_new = NeuralNet()           # weight만 load 할때는 architecture가 필요함
+model_new.load_state_dict(torch.load(path.pth)) 
+
+####### cpu로 load
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+A.load_state_dict(torch.load('A.pth', map_location=device))   
+
+#################################################
+# PIL image, tensor, numpy 변환
+from PIL import Image
+from torchvision.transforms import ToTensor, ToPILImage
+import numpy
+import matplotlib.pyplot as plt
+
+
+image = Image.open(file.jpg)    # PIL image open        # (0~255), (H,W,C)
+np_image = numpy.array(image)   # numpy array           # (0~255), (H,W,C)
+plt.imshow(image)               # PIL image show
+plt.show()
+
+tf_tensor = torchvision.transfroms.ToTensor()   # generate object       # (0~1), (C,H,W)
+tf_img = tf_tensor(image)                       # convert from pil to tensor
+tf_np_img = tf_tensor(np_image)                 # convert from pil to tensor
+print(type(tf_img), tf_img,type(tf_np_img), tf_np_img)
+
+tf_pil = torchvision.transfroms.ToPILImage()    # generate objec
+tf_img = tf_pil(image)                          # convert from tensor to pil
+tf_np_img = tf_pil(tf_np_img)                   # convert from tensor to pil
+print(type(tf_img), tf_img, type(tf_np_img), tf_np_img)
+
+
+#################################################
+# ImageNette 다운
+
+dataset_url = 'https://s3.amazonaws.com/fast-ai-imageclas/imagenette-160.tgz'
+db = download_url(dataset_url,'.')
+# Extract from archive
+with tarfile.open('./imagenette-160.tgz', 'r:gz') as tar:
+    tar.extractall(path='./data')
+    
+# Look into the data directory
+data_dir = './data/imagenette-160'
+print(os.listdir(data_dir))
+classes = os.listdir(data_dir + "/train")
+print(classes)
+#################################################
+# Data parallelism
+
+model = Model()
+if torch.cuda.device_count() > 1:
+  model = nn.DataParallel(model)
+model.to(device)
+
+for data in dataloader:
+    input = data.to(device)
+    output = model(input)
+
+#################################################
+# model parallelism
+
+class ToyModel(nn.Module):
+    def __init__(self):
+        super(ToyModel, self).__init__()
+        self.net1 = torch.nn.Linear(10, 10).to('cuda:0') # 첫 번째 층을 첫 번째 GPU에 할당
+        self.relu = torch.nn.ReLU()
+        self.net2 = torch.nn.Linear(10, 5).to('cuda:1')  # 두 번째 층을 두 번째 GPU에 할당
+
+    def forward(self, x):
+        x = self.relu(self.net1(x.to('cuda:0')))
+        return self.net2(x.to('cuda:1'))
+
+outputs = model(torch.randn(20, 10))
+labels = torch.randn(20, 5).to('cuda:1') # 신경망 모델의 최종 출력값과 동일한 GPU에 할당
+#################################################
+# Distributed Data Parallel(DDP)
+
+from torch.nn.parallel import DistributedDataParallel as DDP
+
+def setup(rank, world_size):
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+
+    # 작업 그룹 초기화
+    dist.init_process_group("gloo", rank=rank, world_size=world_size)
+
+def cleanup():
+    dist.destroy_process_group()
+   
+def demo_basic(rank, world_size):
+    print(f"Running basic DDP example on rank {rank}.")
+    setup(rank, world_size)
+
+    # 모델을 생성하고 순위 아이디가 있는 GPU로 전달
+    model = ToyModel().to(rank)
+    ddp_model = DDP(model, device_ids=[rank])
+
+    loss_fn = nn.MSELoss()
+    optimizer = optim.SGD(ddp_model.parameters(), lr=0.001)
+
+    optimizer.zero_grad()
+    outputs = ddp_model(torch.randn(20, 10))
+    labels = torch.randn(20, 5).to(rank)
+    loss_fn(outputs, labels).backward()
+    optimizer.step()
+
+    cleanup()
+
+
+def run_demo(demo_fn, world_size):
+    mp.spawn(demo_fn,
+             args=(world_size,),
+             nprocs=world_size,
+             join=True)
+   
+#################################################
+# Profile
+from torch.profiler import profile, record_function, ProfilerActivity
+with profile(activities = [ProfilerActivity.CPU],
+            my_schedule = schedule(
+                warmup=1,
+                active=3,
+                repeat=2),
+                record_shapes = True) as prof:
+
+    with record_function('model_inference'):
+        train(train_dataloader, model, optimizer, loss_fn, epochs) # 연산 실행
+        
+print(prof.key_averages().table(sort_by = 'self_cpu_time_total', row_limit = 5))
+prof.export_chrome_trace('trace.json')  # chrome://trace 에서 GUI로 분석
+
+
+
+
+#################################################
+def preprocessing_datacopy(base_path, file_name):
+"""
+data copy and split
+"""
+
+    os.mkdir('/content/dataset')
+    original_dataset_dir = os.path.join(base_path, file_name)
+
+    classes_list = os.listdir(original_dataset_dir)
+
+    base_dir = '/content/splitted'
+    os.mkdir(base_dir)
+
+    train_dir = os.path.join(base_dir, 'train')
+    os.mkdir(train_dir)
+    validation_dir = os.path.join(base_dir,'val')
+    os.mkdir(validation_dir)
+    test_dir = os.path.join(base_dir,'test')
+    os.mkdir(test_dir)
+
+
+
+    for clss in classes_list:
+        os.mkdir(os.path.join(train_dir, clss))
+        os.mkdir(os.path.join(validation_dir, clss))
+        os.mkdir(os.path.join(test_dir, clss))
+
+
+    for clss in classes_list:
+        path = os.path.join(original_dataset_dir, clss)
+        fnames = os.listdir(path)
+
+        train_size = math.floor(len(fnames) * .6)
+        validation_size = math.floor(len(fnames) * .2)
+        test_size = math.floor(len(fnames) * .2)
+
+        train_fnames = fnames[:train_size]
+        print(f'train size: {clss}   file size: {len(train_fnames)}')
+        for fname in train_fnames:
+            src = os.path.join(path, fname)
+            dst = os.path.join(os.path.join(train_dir, clss), fname)
+            shutil.copyfile(src, dst)
+
+
+        validation_fnames = fnames[train_size : validation_size + train_size]
+        print(f'validation size: {clss} file size: {len(validation_fnames)}')
+
+        for fname in validation_fnames:
+            src = os.path.join(path, fname)
+            dst = os.path.join(os.path.join(validation_dir,clss), fname)
+            shutil.copyfile(src, dst)
+
+        test_fnames = fnames[train_size : test_size + train_size]
+        print(f'test size: {clss} file size: {len(test_fnames)}')
+
+        for fname in test_fnames:
+            src = os.path.join(path, fname)
+            dst = os.path.join(os.path.join(test_dir, clss), fname)
+            shutil.copyfile(src, dst)
