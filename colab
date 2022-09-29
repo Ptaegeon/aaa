@@ -62,3 +62,9 @@ setInterval(ClickConnect, 60 * 1000)
 ######################################################
 # colab에서 단일 file download
 !curl -L -O url       #-L auto redirection -O use same filename
+
+######################################################
+# 한글 font 사용하기
+!apt-get install fonts-nanum*
+!apt-get install fontconfig
+font_path = '/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
