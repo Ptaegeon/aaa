@@ -1,4 +1,4 @@
----
+----
 # 1 line save
 
 ```python
@@ -27,3 +27,4 @@ with open('abc.jpg', 'rb') as source_file:
     else:
       break
 ```
+---
