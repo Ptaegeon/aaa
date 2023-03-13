@@ -1,0 +1,21 @@
+# pickel 사용
+
+import numpy as np
+import os
+import pandas as pd
+import pickle
+
+
+csv_data = []
+
+path = 'D:\E-DAIC-WOZ\Avec_features/text/'
+files = [f for f in os.listdir(path) if 'csv' in f]
+files.sort()
+
+for f in files:
+    d = pd.read_csv(path+f)
+    csv_data.append([d.split() for d in d['Text']])
+csv_data[0]
+
+with open('D:\E-DAIC-WOZ\Avec_features\\text\\000.npy', 'wb') as file:
+    pickle.dump(csv_data, file)
